@@ -27,6 +27,17 @@ comptime {
 const terminal = @import("terminal.zig");
 
 export fn kernel_main() void {
-    terminal.terminal_init();
-    terminal.terminal_write("Hello Kernel!\n");
+    terminal.init();
+    const msg = "Hello Kernel!";
+    for (0..msg.len + 3) |i| {
+        terminal.put_entry_at('#', 0b00001010, i, 0);
+        terminal.put_entry_at('#', 0b00001010, i, 4);
+    }
+
+    for (0..5) |i| {
+        terminal.put_entry_at('#', 0b00001010, 0, i);
+        terminal.put_entry_at('#', 0b00001010, msg.len + 3, i);
+    }
+    terminal.put_cursor_at(2, 2);
+    terminal.write(msg);
 }
