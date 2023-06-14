@@ -2,10 +2,6 @@ comptime {
     const builtin = @import("builtin");
     const tgt = builtin.target;
 
-    // if (tgt.os.tag != .freestanding or tgt.cpu.arch != .x86) {
-    //     @compileError("Target must be x86-freestanding (-target x86-freestanding)");
-    // }
-
     // @Todo: Not sure if Abi.none is correct. IDK what System V ABI is in Zig
     if (tgt.os.tag != .freestanding or tgt.cpu.arch != .x86 or tgt.abi != .none) {
         @compileError("Target must be x86-freestanding-none (-target x86-freestanding-none)");
@@ -27,16 +23,20 @@ const terminal = @import("terminal.zig");
 
 pub export fn kernel_main() void {
     terminal.init();
+
     const msg = "Hello Kernel!";
+    const border_color = terminal.VGA.color(.light_green, .black);
+
     for (0..msg.len + 3) |i| {
-        terminal.put_entry_at('#', 0b00001010, i, 0);
-        terminal.put_entry_at('#', 0b00001010, i, 4);
+        terminal.put_entry_at(i, 0, '#', border_color);
+        terminal.put_entry_at(i, 4, '#', border_color);
     }
 
     for (0..5) |i| {
-        terminal.put_entry_at('#', 0b00001010, 0, i);
-        terminal.put_entry_at('#', 0b00001010, msg.len + 3, i);
+        terminal.put_entry_at(0, i, '#', border_color);
+        terminal.put_entry_at(msg.len + 3, i, '#', border_color);
     }
+
     terminal.put_cursor_at(2, 2);
     terminal.write(msg);
 }
