@@ -2,6 +2,14 @@ const std = @import("std");
 const Build = std.Build;
 const Step = Build.Step;
 
+const os_name = "myos";
+/// Meant to be formatted with `.{ os_name, kernel_filename }`
+const grub_cfg =
+    \\menuentry "{s}" {{
+    \\    multiboot /boot/{s}
+    \\}}
+;
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -31,7 +39,7 @@ pub fn build(b: *Build) !void {
     const kernel_install = b.addInstallArtifact(kernel);
     b.getInstallStep().dependOn(&kernel_install.step);
 
-    const iso = addISO(b, "myos.iso", kernel_install);
+    const iso = addISO(b, os_name ++ ".iso", kernel_install);
     const build_iso = b.step("iso", "Build operating system ISO image (requires GRUB)");
     build_iso.dependOn(&iso.step);
 }
@@ -138,7 +146,8 @@ const BuildIsoStep = struct {
         defer bootdir.close();
 
         try fs.cwd().copyFile(self.kernel_path, bootdir, self.kernel_filename, .{});
-        try fs.cwd().copyFile(b.pathFromRoot("src/grub.cfg"), bootdir, "grub/grub.cfg", .{});
+        // try fs.cwd().copyFile(b.pathFromRoot("src/grub.cfg"), bootdir, "grub/grub.cfg", .{});
+        try bootdir.writeFile("grub.cfg", b.fmt(grub_cfg, .{ os_name, self.kernel_filename }));
         sub_node.completeOne();
 
         // Build iso
