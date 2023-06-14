@@ -2,11 +2,10 @@
 // Currently broken!
 
 // Declare constants for the multiboot header.
-const MBALIGN = 1 << 0; // align loaded modules on page boundaries
+const ALIGN = 1 << 0; // align loaded modules on page boundaries
 const MEMINFO = 1 << 1; // provide memory map
-const MBFLAGS = MBALIGN | MEMINFO; // this is the Multiboot 'flag' field
+const FLAGS = ALIGN | MEMINFO; // this is the Multiboot 'flag' field
 const MAGIC = 0x1BADB002; // 'magic number' lets bootloader find the header
-const CHECKSUM = -(MAGIC + MBFLAGS); // checksum of above, to prove we are multiboot
 
 // Declare a multiboot header that marks the program as a kernel. These are magic
 // values that are documented in the multiboot standard. The bootloader will
@@ -14,17 +13,16 @@ const CHECKSUM = -(MAGIC + MBFLAGS); // checksum of above, to prove we are multi
 // 32-bit boundary. The signature is in its own section so the header can be
 // forced to be within the first 8 KiB of the kernel file.
 
-// const MultibootHeader = packed struct {
-const MultibootHeader = extern struct {
+const Multiboot = extern struct {
     magic: i32,
     flags: i32,
     checksum: i32,
 };
 
-export var multiboot align(4) linksection(".multiboot") = MultibootHeader{
+export const multiboot align(4) linksection(".multiboot") = Multiboot{
     .magic = MAGIC,
-    .flags = MBFLAGS,
-    .checksum = CHECKSUM,
+    .flags = FLAGS,
+    .checksum = -(MAGIC + FLAGS), // checksum of above, to prove we are multiboot
 };
 
 // The multiboot standard does not define the value of the stack pointer register
@@ -39,7 +37,11 @@ export var multiboot align(4) linksection(".multiboot") = MultibootHeader{
 // undefined behavior.
 
 export var stack: [16 * 1024]u8 align(16) linksection(".bss") = undefined;
-const stack_slice = stack[0..];
+const stack_top = (&stack).ptr + stack.len;
+
+// The linker script specifies _start as the entry point to the kernel and the
+// bootloader will jump to this position once the kernel has been loaded. It
+// doesn't make sense to return from this function as the bootloader is gone.
 
 export fn _start() callconv(.Naked) noreturn {
     // The bootloader has loaded us into 32-bit protected mode on a x86
@@ -57,8 +59,11 @@ export fn _start() callconv(.Naked) noreturn {
     // stack (as it grows downwards on x86 systems). This is necessarily done
     // in assembly as languages such as C cannot function without a stack.
 
-    const stack_top = stack_slice.ptr;
-    asm volatile (
+    asm volatile (""
+        :
+        : [stack_top] "{esp}" (stack_top),
+    );
+
     // This is a good place to initialize crucial processor state before the
     // high-level kernel is entered. It's best to minimize the early
     // environment where crucial features are offline. Note that the
@@ -74,15 +79,14 @@ export fn _start() callconv(.Naked) noreturn {
     // aligned above and we've since pushed a multiple of 16 bytes to the
     // stack since (pushed 0 bytes so far) and the alignment is thus
     // preserved and the call is well defined.
-        \\ call kernel_main
-        :
-        : [stack_top] "{esp}" (stack_top),
-        : "esp"
-    );
 
+    @import("kernel.zig").kernel_main();
+
+    // Can call kernel_main and setup stack at the same time, though you might want
+    // to setup the stack before configuring processor state.
     // They removed this feature in 0.11.0-dev, even though async isn't ready yet
     // https://github.com/ziglang/zig/pull/13907
-    // @call(.{ .stack = stack_slice }, kernel_main, .{});
+    // @call(.{ .stack = stack_slice }, @import("kernel.zig").kernel_main, .{});
 
     // If the system has nothing more to do, put the computer into an
     // infinite loop. To do that:

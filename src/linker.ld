@@ -13,7 +13,9 @@ SECTIONS {
       in the image or the bootloader won't recognize the file format.
       Next we'll put the .text section. */
    .text : ALIGN(4K) {
-      *(.multiboot)
+      /* KEEP ensures the section is always included even if it's 
+         never referenced. Necessary to make boot.zig work. */
+      KEEP(*(.multiboot)) 
       *(.text)
    }
 

@@ -23,10 +23,9 @@ comptime {
     }
 }
 
-// const boot = @import("boot.zig");
 const terminal = @import("terminal.zig");
 
-export fn kernel_main() void {
+pub export fn kernel_main() void {
     terminal.init();
     const msg = "Hello Kernel!";
     for (0..msg.len + 3) |i| {

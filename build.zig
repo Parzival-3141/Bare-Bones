@@ -17,28 +17,15 @@ pub fn build(b: *std.Build) !void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const boot = b.addAssembly(.{
-        .name = "boot",
-        .source_file = .{ .path = "src/boot.s" },
-        .target = target,
-        .optimize = optimize,
-    });
-    boot.code_model = .kernel;
-    boot.setLinkerScriptPath(.{ .path = "src/linker.ld" });
-
     const kernel = b.addExecutable(.{
         .name = "kernel.bin",
-        .root_source_file = .{ .path = "src/kernel.zig" },
+        .root_source_file = .{ .path = "src/boot.zig" },
         .target = target,
         .optimize = optimize,
     });
     kernel.setLinkerScriptPath(.{ .path = "src/linker.ld" });
     kernel.code_model = .kernel;
 
-    kernel.step.dependOn(&boot.step);
-    kernel.addObject(boot);
-
-    // b.installArtifact(kernel);
     const kernel_install = b.addInstallArtifact(kernel);
     b.getInstallStep().dependOn(&kernel_install.step);
     build_iso(b, kernel_install, kernel.out_filename);
