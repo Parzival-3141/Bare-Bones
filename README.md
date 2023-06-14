@@ -4,13 +4,15 @@ and it's [Zig version](https://wiki.osdev.org/Zig_Bare_Bones) on OSDev.org
 
 ## Requirements
  - zig
- - grub-mkrescue
+ - grub
+ - xorriso
  - qemu
 
 ## Building
+Windows users can use the `-Dwsl` flag to run GRUB commands through [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
+
 ```sh
-zig build
-grub-mkrescue -o myos.iso isodir
+zig build iso
 qemu-system-i386 -cdrom myos.iso
 ```
 
