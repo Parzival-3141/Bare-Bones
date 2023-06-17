@@ -48,6 +48,17 @@ pub fn write(str: []const u8) void {
     }
 }
 
+pub const Writer = @import("std").io.Writer(void, error{}, zwrite);
+
+fn zwrite(_: void, bytes: []const u8) !usize {
+    write(bytes);
+    return bytes.len;
+}
+
+pub fn writer() Writer {
+    return .{ .context = {} };
+}
+
 pub const VGA = struct {
     pub const WIDTH = 80;
     pub const HEIGHT = 25;
@@ -60,7 +71,7 @@ pub const VGA = struct {
         return char | (@as(u16, colour) << 8);
     }
 
-    const Color = enum(u4) {
+    pub const Color = enum(u4) {
         black = 0,
         blue = 1,
         green = 2,
