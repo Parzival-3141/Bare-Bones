@@ -11,6 +11,7 @@ pub fn init() void {
             put_entry_at(x, y, ' ', color);
         }
     }
+    put_cursor_at(0, 0);
 }
 
 pub fn put_entry_at(x: usize, y: usize, c: u8, new_color: u8) void {

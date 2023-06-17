@@ -5,8 +5,12 @@ const Step = Build.Step;
 const os_name = "myos";
 /// Meant to be formatted with `.{ os_name, kernel_filename }`
 const grub_cfg =
+    \\set default=0
+    \\set timeout=0
+    \\
     \\menuentry "{s}" {{
     \\    multiboot /boot/{s}
+    \\    boot
     \\}}
 ;
 
@@ -53,6 +57,7 @@ fn addISO(b: *Build, comptime iso_name: []const u8, kernel_install: *Step.Instal
         b.fmt("zig-out/bin/{s}", .{kernel_filename}),
         kernel_filename,
         b.option(bool, "wsl", "Run GRUB commands through WSL") orelse false,
+        b.option(bool, "verify-mboot", "Verify kernel is Multiboot compliant") orelse false,
     );
 
     iso.step.dependOn(&kernel_install.step);
@@ -65,6 +70,7 @@ const BuildIsoStep = struct {
     kernel_path: []const u8,
     kernel_filename: []const u8,
     use_wsl: bool,
+    verify_multiboot: bool,
 
     pub fn create(
         owner: *Build,
@@ -72,6 +78,7 @@ const BuildIsoStep = struct {
         kernel_path: []const u8,
         kernel_filename: []const u8,
         use_wsl: bool,
+        verify_multiboot: bool,
     ) *BuildIsoStep {
         const self = owner.allocator.create(BuildIsoStep) catch @panic("OOM");
         self.* = .{
@@ -85,6 +92,7 @@ const BuildIsoStep = struct {
             .kernel_path = kernel_path,
             .kernel_filename = kernel_filename,
             .use_wsl = use_wsl,
+            .verify_multiboot = verify_multiboot,
         };
         return self;
     }
@@ -103,38 +111,40 @@ const BuildIsoStep = struct {
         const kernel_path_posix = normalize_path_seperators(b.allocator, self.kernel_path) catch @panic("OOM");
         defer b.allocator.free(kernel_path_posix);
 
-        // Verify multiboot header
-        // [wsl] grub-file --is-x86-multiboot zig-out/bin/kernel.bin
-        sub_node.setName("verifying multiboot header");
-        sub_node.context.refresh();
+        if (self.verify_multiboot) {
+            // Verify multiboot header
+            // [wsl] grub-file --is-x86-multiboot zig-out/bin/kernel.bin
+            sub_node.setName("verifying multiboot header");
+            sub_node.context.refresh();
 
-        const verify_cmd = &[_][]const u8{
-            if (self.use_wsl) "wsl" else "",
-            "grub-file",
-            "--is-x86-multiboot",
-            kernel_path_posix,
-        };
+            const verify_cmd = &[_][]const u8{
+                if (self.use_wsl) "wsl" else "",
+                "grub-file",
+                "--is-x86-multiboot",
+                kernel_path_posix,
+            };
 
-        const verify_result = std.ChildProcess.exec(.{
-            .allocator = b.allocator,
-            .argv = verify_cmd,
-        }) catch |err| {
-            const cmd = std.mem.join(b.allocator, " ", verify_cmd) catch @panic("OOM");
-            defer b.allocator.free(cmd);
+            const verify_result = std.ChildProcess.exec(.{
+                .allocator = b.allocator,
+                .argv = verify_cmd,
+            }) catch |err| {
+                const cmd = std.mem.join(b.allocator, " ", verify_cmd) catch @panic("OOM");
+                defer b.allocator.free(cmd);
 
-            step.addError(
-                "VerifyMultibootFailed:\nVerify command failed with error {s}:\n{s}",
-                .{ @errorName(err), cmd },
-            ) catch @panic("OOM");
-            return error.MakeFailed;
-        };
+                step.addError(
+                    "VerifyMultibootFailed:\nVerify command failed with error {s}:\n{s}",
+                    .{ @errorName(err), cmd },
+                ) catch @panic("OOM");
+                return error.MakeFailed;
+            };
 
-        if (verify_result.stderr.len != 0) {
-            step.addError("VerifyMultibootFailed:\n{s}", .{verify_result.stderr}) catch @panic("OOM");
-            return error.MakeFailed;
+            if (verify_result.stderr.len != 0) {
+                step.addError("VerifyMultibootFailed:\n{s}", .{verify_result.stderr}) catch @panic("OOM");
+                return error.MakeFailed;
+            }
+
+            if (verify_result.term.Exited != 0) return error.NotMultibootCompliant;
         }
-
-        if (verify_result.term.Exited != 0) return error.NotMultibootCompliant;
         sub_node.completeOne();
 
         // Create isodir directory
