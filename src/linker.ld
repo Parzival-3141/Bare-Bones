@@ -10,18 +10,15 @@ SECTIONS {
    . = 1M;
 
    /* First put the multiboot header, as it is required to be put very early
-      in the image or the bootloader won't recognize the file format.
-      Next we'll put the .text section. */
+      in the image or the bootloader won't recognize the file format. */
 
-   /* @Todo: 
-      For some reason when compiling with ReleaseFast/Small/Safe, using 
-      ALIGN(4K) here causes the multiboot header to be outside the first 8KiB, 
-      which breaks Multiboot compliance. https://github.com/andrewrk/HellOS/issues/7
-   */
-   .text : { 
+   .rodata.boot : ALIGN(4K) {
       /* KEEP() ensures the section is always included even if it's 
          never referenced. Necessary to make boot.zig work. */
       KEEP(*(.multiboot)) 
+   }
+
+   .text : ALIGN(4K) { 
       *(.text)
    }
 
