@@ -157,7 +157,7 @@ const BuildIsoStep = struct {
 
         try fs.cwd().copyFile(self.kernel_path, bootdir, self.kernel_filename, .{});
         // try fs.cwd().copyFile(b.pathFromRoot("src/grub.cfg"), bootdir, "grub/grub.cfg", .{});
-        try bootdir.writeFile("grub.cfg", b.fmt(grub_cfg, .{ os_name, self.kernel_filename }));
+        try bootdir.writeFile("grub/grub.cfg", b.fmt(grub_cfg, .{ os_name, self.kernel_filename }));
         sub_node.completeOne();
 
         // Build iso
