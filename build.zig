@@ -32,12 +32,14 @@ pub fn build(b: *Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const kernel = b.addExecutable(.{
-        .name = "kernel.bin",
-        .root_source_file = .{ .path = "src/boot.zig" },
+        .name = "kernel.elf",
+        .root_source_file = .{ .path = "src/kernel.zig" },
         .target = target,
         .optimize = optimize,
+        .use_lld = true,
     });
     kernel.setLinkerScriptPath(.{ .path = "src/linker.ld" });
+    // kernel.stack_protector = true;
     kernel.code_model = .kernel;
 
     const kernel_install = b.addInstallArtifact(kernel);

@@ -19,9 +19,15 @@ comptime {
     }
 }
 
-const terminal = @import("terminal.zig");
+// Force boot.zig to be included in the build
+comptime {
+    _ = @import("boot.zig");
+}
 
-pub export fn kernel_main() void {
+const terminal = @import("terminal.zig");
+const multiboot = @import("multiboot.zig");
+
+export fn kernel_main() void {
     terminal.init();
 
     const msg = "Hello Kernel!";

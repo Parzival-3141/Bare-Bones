@@ -1,7 +1,7 @@
 var row: usize = 0;
 var column: usize = 0;
 
-pub var color = VGA.color(.light_grey, .black);
+pub var color: u8 = VGA.color(.light_grey, .black);
 
 var buffer = @intToPtr([*]volatile u16, 0xB8000);
 
@@ -30,16 +30,30 @@ pub fn put_cursor_at(x: usize, y: usize) void {
 }
 
 pub fn put_char(c: u8) void {
-    if (c == '\n') {
-        put_cursor_at(0, row + 1);
-        return;
-    }
+    if (c != '\n') put_entry_at(column, row, c, color);
 
-    put_entry_at(column, row, c, color);
     column += 1;
-    if (column == VGA.WIDTH) {
+    if (column >= VGA.WIDTH or c == '\n') {
         column = 0;
-        row = (row + 1) % VGA.HEIGHT;
+
+        if (row + 1 >= VGA.HEIGHT) {
+            // scroll terminal
+            for (0..VGA.HEIGHT) |y| {
+                if (y == 0) continue;
+
+                for (0..VGA.WIDTH) |x| {
+                    buffer[(y - 1) * VGA.WIDTH + x] = buffer[y * VGA.WIDTH + x];
+                }
+
+                if (y == VGA.HEIGHT - 1) {
+                    for (0..VGA.WIDTH) |x| {
+                        buffer[y * VGA.WIDTH + x] = ' ';
+                    }
+                }
+            }
+        } else {
+            row += 1;
+        }
     }
 }
 
@@ -49,9 +63,9 @@ pub fn write(str: []const u8) void {
     }
 }
 
-pub const Writer = @import("std").io.Writer(void, error{}, zwrite);
+pub const Writer = @import("std").io.Writer(void, error{}, _write);
 
-fn zwrite(_: void, bytes: []const u8) !usize {
+fn _write(_: void, bytes: []const u8) !usize {
     write(bytes);
     return bytes.len;
 }
