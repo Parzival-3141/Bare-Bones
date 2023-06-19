@@ -6,12 +6,16 @@ pub var color: u8 = VGA.color(.light_grey, .black);
 var buffer = @intToPtr([*]volatile u16, 0xB8000);
 
 pub fn init() void {
+    clear();
+    put_cursor_at(0, 0);
+}
+
+pub fn clear() void {
     for (0..VGA.HEIGHT) |y| {
         for (0..VGA.WIDTH) |x| {
             put_entry_at(x, y, ' ', color);
         }
     }
-    put_cursor_at(0, 0);
 }
 
 pub fn put_entry_at(x: usize, y: usize, c: u8, new_color: u8) void {

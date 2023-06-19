@@ -28,8 +28,7 @@ const stack_top = (&stack).ptr + stack.len;
 // bootloader will jump to this position once the kernel has been loaded. It
 // doesn't make sense to return from this function as the bootloader is gone.
 
-extern fn kernel_main() void;
-// extern fn kernel_main(info: *const multiboot.Info) void;
+extern fn kernel_main(info: *const multiboot.Info) void;
 
 export fn _start() callconv(.Naked) noreturn {
     // The bootloader has loaded us into 32-bit protected mode on a x86
@@ -68,12 +67,11 @@ export fn _start() callconv(.Naked) noreturn {
     // stack since (pushed 0 bytes so far) and the alignment is thus
     // preserved and the call is well defined.
 
-    // const mbinfo_addr =
-    //     asm volatile ("mov %ebx, %[ret]"
-    //     : [ret] "=r" (-> usize),
-    // );
-    // kernel_main(@intToPtr(*const multiboot.Info, mbinfo_addr));
-    kernel_main();
+    const mbinfo_addr: usize align(16) =
+        asm volatile (""
+        : [ret] "={ebx}" (-> usize),
+    );
+    kernel_main(@intToPtr(*const multiboot.Info, mbinfo_addr));
 
     // Can call kernel_main and setup stack at the same time, though you might want
     // to setup the stack before configuring processor state.

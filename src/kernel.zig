@@ -27,22 +27,33 @@ comptime {
 const terminal = @import("terminal.zig");
 const multiboot = @import("multiboot.zig");
 
-export fn kernel_main() void {
+pub fn panic(msg: []const u8, error_return_trace: ?*@import("std").builtin.StackTrace, ret_addr: ?usize) noreturn {
+    @setCold(true);
+    @import("panic.zig").panic(msg, error_return_trace, ret_addr);
+}
+
+export fn kernel_main(info: *const multiboot.Info) void {
     terminal.init();
+    const writer = terminal.writer();
 
-    const msg = "Hello Kernel!";
-    const border_color = terminal.VGA.color(.light_green, .black);
-
-    for (0..msg.len + 3) |i| {
-        terminal.put_entry_at(i, 0, '#', border_color);
-        terminal.put_entry_at(i, 4, '#', border_color);
+    terminal.write("multiboot.Info:\n");
+    inline for (@typeInfo(multiboot.Info).Struct.fields) |field| {
+        writer.print("    {s}: {}\n", .{ field.name, @field(info.*, field.name) }) catch unreachable;
     }
 
-    for (0..5) |i| {
-        terminal.put_entry_at(0, i, '#', border_color);
-        terminal.put_entry_at(msg.len + 3, i, '#', border_color);
-    }
+    // const msg = "Hello Kernel!";
+    // const border_color = terminal.VGA.color(.light_green, .black);
 
-    terminal.put_cursor_at(2, 2);
-    terminal.write(msg);
+    // for (0..msg.len + 3) |i| {
+    //     terminal.put_entry_at(i, 0, '#', border_color);
+    //     terminal.put_entry_at(i, 4, '#', border_color);
+    // }
+
+    // for (0..5) |i| {
+    //     terminal.put_entry_at(0, i, '#', border_color);
+    //     terminal.put_entry_at(msg.len + 3, i, '#', border_color);
+    // }
+
+    // terminal.put_cursor_at(2, 2);
+    // terminal.write(msg);
 }
