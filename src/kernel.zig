@@ -36,24 +36,23 @@ export fn kernel_main(info: *const multiboot.Info) void {
     terminal.init();
     const writer = terminal.writer();
 
-    terminal.write("multiboot.Info:\n");
-    inline for (@typeInfo(multiboot.Info).Struct.fields) |field| {
-        writer.print("    {s}: {}\n", .{ field.name, @field(info.*, field.name) }) catch unreachable;
+    // terminal.write("multiboot.Info:\n");
+    // inline for (@typeInfo(multiboot.Info).Struct.fields) |field| {
+    //     writer.print("{s}: {}\n", .{ field.name, @field(info.*, field.name) }) catch unreachable;
+    // }
+
+    if (!info.flags.mem_map) @panic("Missing memory map!\n");
+
+    const num_mmap_entries = info.mmap_length / @sizeOf(multiboot.MemoryMapEntry);
+    const mem_map = @intToPtr([*]multiboot.MemoryMapEntry, info.mmap_addr)[0..num_mmap_entries];
+
+    for (mem_map) |entry| {
+        for (0..10_000) |_| {}
+
+        writer.print("address 0x{x}[0..0x{x}] is {s}\n", .{
+            entry.base_addr,
+            entry.length,
+            if (@enumToInt(entry.mem_type) <= @enumToInt(multiboot.MemoryMapEntry.MemoryType.badram)) @tagName(entry.mem_type) else "reserved",
+        }) catch unreachable;
     }
-
-    // const msg = "Hello Kernel!";
-    // const border_color = terminal.VGA.color(.light_green, .black);
-
-    // for (0..msg.len + 3) |i| {
-    //     terminal.put_entry_at(i, 0, '#', border_color);
-    //     terminal.put_entry_at(i, 4, '#', border_color);
-    // }
-
-    // for (0..5) |i| {
-    //     terminal.put_entry_at(0, i, '#', border_color);
-    //     terminal.put_entry_at(msg.len + 3, i, '#', border_color);
-    // }
-
-    // terminal.put_cursor_at(2, 2);
-    // terminal.write(msg);
 }
