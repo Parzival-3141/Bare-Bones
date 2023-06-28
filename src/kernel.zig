@@ -36,6 +36,8 @@ export fn kernel_main(info: *const multiboot.Info) void {
     terminal.init();
     const writer = terminal.writer();
 
+    print_hello();
+
     // terminal.write("multiboot.Info:\n");
     // inline for (@typeInfo(multiboot.Info).Struct.fields) |field| {
     //     writer.print("{s}: {}\n", .{ field.name, @field(info.*, field.name) }) catch unreachable;
@@ -54,5 +56,25 @@ export fn kernel_main(info: *const multiboot.Info) void {
             entry.length,
             if (@enumToInt(entry.mem_type) <= @enumToInt(multiboot.MemoryMapEntry.MemoryType.badram)) @tagName(entry.mem_type) else "reserved",
         }) catch unreachable;
+    }
+}
+
+fn print_hello() void {
+    const hello_msg =
+        \\#################
+        \\#               #
+        \\# Hello Kernel! #
+        \\#               #
+        \\#################
+        \\
+        \\
+    ;
+
+    const defualt_color = terminal.VGA.color(.light_grey, .black);
+    const border_color = terminal.VGA.color(.light_green, .black);
+
+    for (hello_msg) |c| {
+        terminal.color = if (c == '#') border_color else defualt_color;
+        terminal.put_char(c);
     }
 }
