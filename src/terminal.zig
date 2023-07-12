@@ -3,7 +3,7 @@ var column: usize = 0;
 
 pub var color: u8 = VGA.color(.light_grey, .black);
 
-var buffer = @intToPtr([*]volatile u16, 0xB8000);
+var buffer = @as([*]volatile u16, @ptrFromInt(0xB8000));
 
 pub fn init() void {
     clear();
@@ -25,7 +25,7 @@ pub fn put_entry_at(x: usize, y: usize, c: u8, new_color: u8) void {
 
 pub fn put_color_at(x: usize, y: usize, new_color: u8) void {
     const index = (y % VGA.HEIGHT) * VGA.WIDTH + (x % VGA.WIDTH);
-    buffer[index] = VGA.entry(@truncate(u8, buffer[index]), new_color);
+    buffer[index] = VGA.entry(@as(u8, @truncate(buffer[index])), new_color);
 }
 
 pub fn put_cursor_at(x: usize, y: usize) void {
@@ -83,7 +83,7 @@ pub const VGA = struct {
     pub const HEIGHT = 25;
 
     pub inline fn color(foreground: Color, background: Color) u8 {
-        return @enumToInt(foreground) | (@as(u8, @enumToInt(background)) << 4);
+        return @intFromEnum(foreground) | (@as(u8, @intFromEnum(background)) << 4);
     }
 
     pub inline fn entry(char: u8, colour: u8) u16 {

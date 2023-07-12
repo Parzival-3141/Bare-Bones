@@ -15,7 +15,7 @@ pub const Header = extern struct {
         return .{
             .magic = HEADER_MAGIC,
             .flags = flags,
-            .checksum = ~(HEADER_MAGIC +% @bitCast(u32, flags)) +% 1,
+            .checksum = ~(HEADER_MAGIC +% @as(u32, @bitCast(flags))) +% 1,
         };
     }
 
@@ -73,10 +73,12 @@ pub const Info = packed struct {
     },
 
     // Memory Mapping buffer
+    /// Length of array in bytes
     mmap_length: u32,
     mmap_addr: u32,
 
     // Drive Info buffer
+    /// Length of array in bytes
     drives_length: u32,
     drives_addr: u32,
 
@@ -230,7 +232,7 @@ pub const ELF_SectionHeaderInfo = packed struct {
     shndx: u32,
 };
 
-pub const MemoryMapEntry = packed struct {
+pub const MemoryMapEntry = extern struct {
     //         +-------------------+
     // -4      | size              |
     //         +-------------------+
@@ -249,11 +251,11 @@ pub const MemoryMapEntry = packed struct {
     // The map provided is guaranteed to list all standard RAM that should be available for normal use.
 
     /// Size of the the current entry. Minimum of 20 bytes
-    size: u32,
-    base_addr: u64,
+    size: u32 align(1),
+    base_addr: u64 align(1),
     /// Size of memory region in bytes
-    length: u64,
-    mem_type: MemoryType,
+    length: u64 align(1),
+    mem_type: MemoryType align(1),
 
     pub const MemoryType = enum(u32) {
         available = 1,

@@ -46,15 +46,13 @@ export fn kernel_main(info: *const multiboot.Info) void {
     if (!info.flags.mem_map) @panic("Missing memory map!\n");
 
     const num_mmap_entries = info.mmap_length / @sizeOf(multiboot.MemoryMapEntry);
-    const mem_map = @intToPtr([*]multiboot.MemoryMapEntry, info.mmap_addr)[0..num_mmap_entries];
+    const mem_map = @as([*]multiboot.MemoryMapEntry, @ptrFromInt(info.mmap_addr))[0..num_mmap_entries];
 
     for (mem_map) |entry| {
-        for (0..10_000) |_| {}
-
         writer.print("address 0x{x}[0..0x{x}] is {s}\n", .{
             entry.base_addr,
             entry.length,
-            if (@enumToInt(entry.mem_type) <= @enumToInt(multiboot.MemoryMapEntry.MemoryType.badram)) @tagName(entry.mem_type) else "reserved",
+            if (@intFromEnum(entry.mem_type) <= @intFromEnum(multiboot.MemoryMapEntry.MemoryType.badram)) @tagName(entry.mem_type) else "reserved",
         }) catch unreachable;
     }
 }

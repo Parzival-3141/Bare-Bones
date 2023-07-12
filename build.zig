@@ -3,16 +3,21 @@ const Build = std.Build;
 const Step = Build.Step;
 
 const os_name = "myos";
+
 /// Meant to be formatted with `.{ os_name, kernel_filename }`
-const grub_cfg =
-    \\set default=0
-    \\set timeout=0
-    \\
-    \\menuentry "{s}" {{
-    \\    multiboot /boot/{s}
-    \\    boot
-    \\}}
-;
+fn get_grub_cfg(b: *Build, kernel_filename: []const u8) []const u8 {
+    const grub_cfg =
+        \\set default=0
+        \\set timeout=0
+        \\
+        \\menuentry "{s}" {{
+        \\    multiboot /boot/{s}
+        \\    boot
+        \\}}
+    ;
+
+    return b.fmt(grub_cfg, .{ os_name, kernel_filename });
+}
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -45,9 +50,29 @@ pub fn build(b: *Build) !void {
     const kernel_install = b.addInstallArtifact(kernel);
     b.getInstallStep().dependOn(&kernel_install.step);
 
-    const iso = addISO(b, os_name ++ ".iso", kernel_install);
-    const build_iso = b.step("iso", "Build operating system ISO image (requires GRUB)");
-    build_iso.dependOn(&iso.step);
+    {
+        const iso = addISO(b, os_name ++ ".iso", kernel_install);
+        const build_iso = b.step("iso", "Build operating system ISO image (requires GRUB)");
+        build_iso.dependOn(&iso.step);
+
+        const iso_run_cmd = b.addSystemCommand(&.{ "qemu-system-i386", "-cdrom", os_name ++ ".iso" });
+        iso_run_cmd.step.dependOn(&iso.step);
+
+        const iso_run_step = b.step("run-iso", "Executes ISO image through QEMU");
+        iso_run_step.dependOn(&iso_run_cmd.step);
+    }
+
+    {
+        const elf_run_cmd = b.addSystemCommand(&.{
+            "qemu-system-i386",
+            "-kernel",
+            b.getInstallPath(kernel_install.dest_dir, kernel.out_filename),
+        });
+        elf_run_cmd.step.dependOn(b.getInstallStep());
+
+        const elf_run_step = b.step("run-kernel", "Executes raw kernel binary through QEMU");
+        elf_run_step.dependOn(&elf_run_cmd.step);
+    }
 }
 
 fn addISO(b: *Build, comptime iso_name: []const u8, kernel_install: *Step.InstallArtifact) *BuildIsoStep {
@@ -55,6 +80,7 @@ fn addISO(b: *Build, comptime iso_name: []const u8, kernel_install: *Step.Instal
     const iso = BuildIsoStep.create(
         b,
         iso_name,
+        // @Todo: must use unix-style relative path when using WSL
         // b.getInstallPath(kernel_install.dest_dir, kernel_filename),
         b.fmt("zig-out/bin/{s}", .{kernel_filename}),
         kernel_filename,
@@ -159,7 +185,7 @@ const BuildIsoStep = struct {
 
         try fs.cwd().copyFile(self.kernel_path, bootdir, self.kernel_filename, .{});
         // try fs.cwd().copyFile(b.pathFromRoot("src/grub.cfg"), bootdir, "grub/grub.cfg", .{});
-        try bootdir.writeFile("grub/grub.cfg", b.fmt(grub_cfg, .{ os_name, self.kernel_filename }));
+        try bootdir.writeFile("grub/grub.cfg", get_grub_cfg(b, self.kernel_filename));
         sub_node.completeOne();
 
         // Build iso

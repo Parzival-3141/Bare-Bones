@@ -71,7 +71,7 @@ export fn _start() callconv(.Naked) noreturn {
         asm volatile (""
         : [ret] "={ebx}" (-> usize),
     );
-    kernel_main(@intToPtr(*const multiboot.Info, mbinfo_addr));
+    kernel_main(@as(*const multiboot.Info, @ptrFromInt(mbinfo_addr)));
 
     // Can call kernel_main and setup stack at the same time, though you might want
     // to setup the stack before configuring processor state.
