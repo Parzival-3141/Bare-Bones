@@ -14,7 +14,7 @@ Early is not too soon to think about security and robustness. You can take advan
 - [x] [Multiboot](https://wiki.osdev.org/Multiboot) \
 It's useful to know what features and information the bootloader offers the kernel, as this may help you get memory maps, set video modes, and even kernel symbol tables.
 
-- [ ] [Global Descriptor Table](https://wiki.osdev.org/Global_Descriptor_Table) \
+- [x] [Global Descriptor Table](https://wiki.osdev.org/Global_Descriptor_Table) \
 The Global Descriptor Table is an important part of the processor state and it should as such be one of the first things that are initialized. It probably makes a lot of sense to set up it even prior to kernel_early.
 
 - [ ] [Memory Management](https://wiki.osdev.org/Memory_Management) \
