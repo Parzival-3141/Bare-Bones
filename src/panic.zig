@@ -4,6 +4,8 @@ const terminal = @import("terminal.zig");
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     @setCold(true);
 
+    asm volatile ("cli");
+
     const writer = terminal.writer();
     terminal.clear(); // @Temp
 
