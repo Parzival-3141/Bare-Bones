@@ -45,6 +45,7 @@ pub fn build(b: *Build) !void {
     });
     kernel.setLinkerScriptPath(.{ .path = "src/linker.ld" });
     // kernel.stack_protector = true;
+    // kernel.emit_asm = .emit;
     kernel.code_model = .kernel;
 
     const kernel_install = b.addInstallArtifact(kernel);
@@ -65,10 +66,19 @@ pub fn build(b: *Build) !void {
     {
         const elf_run_cmd = b.addSystemCommand(&.{
             "qemu-system-i386",
+            "-no-reboot",
+            "-monitor",
+            "stdio",
+            "-D",
+            "./qemu.log",
             "-kernel",
             b.getInstallPath(kernel_install.dest_dir, kernel.out_filename),
         });
         elf_run_cmd.step.dependOn(b.getInstallStep());
+
+        if (b.option([]const u8, "qemu-d", "Pass '-d' flags to QEMU. (Must be comma seperated with no spaces)")) |args| {
+            elf_run_cmd.addArgs(&.{ "-d", args });
+        }
 
         const elf_run_step = b.step("run-kernel", "Executes raw kernel binary through QEMU");
         elf_run_step.dependOn(&elf_run_cmd.step);
