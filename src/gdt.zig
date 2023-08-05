@@ -97,7 +97,6 @@ const PAGING_32BIT = Descriptor.Flags{
 };
 
 const TABLE_SIZE: u16 = @sizeOf(Descriptor) * table.len;
-// var table: [5]Descriptor linksection(".rodata") = .{
 const table = [_]Descriptor{
     // Null Descriptor
     make_entry(0, 0, bitCast(Descriptor.AccessFlags, 0x0), bitCast(Descriptor.Flags, 0x0)),
@@ -133,7 +132,6 @@ var gdt_ptr = GDT_Ptr{
 };
 
 pub fn load() void {
-    // asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
     asm volatile ("cli");
 
     // @Todo: initialize TSS here

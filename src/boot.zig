@@ -22,15 +22,15 @@ export const mb_header align(4) linksection(".multiboot") =
 // undefined behavior.
 
 export var stack: [16 * 1024]u8 align(16) linksection(".bss") = undefined;
-const stack_top = (&stack).ptr + stack.len;
+const stack_top = stack[0..].ptr + stack.len;
 
 // The linker script specifies _start as the entry point to the kernel and the
 // bootloader will jump to this position once the kernel has been loaded. It
 // doesn't make sense to return from this function as the bootloader is gone.
 
-extern fn kernel_main(info: *const multiboot.Info) void;
-
 export fn _start() callconv(.Naked) noreturn {
+    // asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
+
     // The bootloader has loaded us into 32-bit protected mode on a x86
     // machine. Interrupts are disabled. Paging is disabled. The processor
     // state is as defined in the multiboot standard. The kernel has full
@@ -46,51 +46,20 @@ export fn _start() callconv(.Naked) noreturn {
     // stack (as it grows downwards on x86 systems). This is necessarily done
     // in assembly as languages such as C cannot function without a stack.
 
-    asm volatile (""
+    asm volatile (
+        \\mov %[stack_top], %%esp
         :
-        : [stack_top] "{esp}" (stack_top),
+        : [stack_top] "i" (stack_top),
+        : "esp"
     );
 
-    // This is a good place to initialize crucial processor state before the
-    // high-level kernel is entered. It's best to minimize the early
-    // environment where crucial features are offline. Note that the
-    // processor is not fully initialized yet: Features such as floating
-    // point instructions and instruction set extensions are not initialized
-    // yet. The GDT should be loaded here. Paging should be enabled here.
-    // C++ features such as global constructors and exceptions will require
-    // runtime support to work as well.
-
-    // Enter the high-level kernel. The ABI requires the stack is 16-byte
-    // aligned at the time of the call instruction (which afterwards pushes
-    // the return pointer of size 4 bytes). The stack was originally 16-byte
-    // aligned above and we've since pushed a multiple of 16 bytes to the
-    // stack since (pushed 0 bytes so far) and the alignment is thus
-    // preserved and the call is well defined.
-
-    const mbinfo_addr: usize align(16) =
-        asm volatile (""
-        : [ret] "={ebx}" (-> usize),
+    // jump to kernel
+    // Note on the ':P' https://llvm.org/docs/LangRef.html#asm-template-argument-modifiers
+    asm volatile (
+        \\call %[kernel_init:P]
+        :
+        : [kernel_init] "X" (&kernel_init),
     );
-    kernel_main(@as(*const multiboot.Info, @ptrFromInt(mbinfo_addr)));
-
-    // Can call kernel_main and setup stack at the same time, though you might want
-    // to setup the stack before configuring processor state.
-    // They removed this feature in 0.11.0-dev, even though async isn't ready yet
-    // https://github.com/ziglang/zig/pull/13907
-    // @call(.{ .stack = stack_slice }, @import("kernel.zig").kernel_main, .{});
-
-    // If the system has nothing more to do, put the computer into an
-    // infinite loop. To do that:
-    // 1) Disable interrupts with cli (clear interrupt enable in eflags).
-    //    They are already disabled by the bootloader, so this is not needed.
-    //    Mind that you might later enable interrupts and return from
-    //    kernel_main (which is sort of nonsensical to do).
-    // 2) Wait for the next interrupt to arrive with hlt (halt instruction).
-    //    Since they are disabled, this will lock up the computer.
-    // 3) Jump to the hlt instruction if it ever wakes up due to a
-    //    non-maskable interrupt occurring or due to system management mode.
-    asm volatile ("cli");
-    while (true) {
-        asm volatile ("hlt");
-    }
 }
+
+extern fn kernel_init() noreturn;

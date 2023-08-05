@@ -9,11 +9,16 @@ and it's [Zig version](https://wiki.osdev.org/Zig_Bare_Bones) on OSDev.org
  - qemu
 
 ## Building
-Windows users can use the `-Dwsl` flag to run GRUB commands through [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
+Windows users can use the `-Dwsl` flag to run GRUB commands through [WSL](https://learn.microsoft.com/en-us/windows/wsl/) (requires xorriso and grub to be installed on your WSL distro).
 
 ```sh
+zig version
+0.11.0
+
 zig build iso
 qemu-system-i386 -cdrom myos.iso
+# Or
+zig build run-kernel # Run kernel binary directly in QEMU
 ```
 
 You should see a nice message like this!

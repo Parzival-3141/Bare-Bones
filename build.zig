@@ -48,7 +48,7 @@ pub fn build(b: *Build) !void {
     // kernel.emit_asm = .emit;
     kernel.code_model = .kernel;
 
-    const kernel_install = b.addInstallArtifact(kernel);
+    const kernel_install = b.addInstallArtifact(kernel, .{});
     b.getInstallStep().dependOn(&kernel_install.step);
 
     {
@@ -72,7 +72,7 @@ pub fn build(b: *Build) !void {
             "-D",
             "./qemu.log",
             "-kernel",
-            b.getInstallPath(kernel_install.dest_dir, kernel.out_filename),
+            b.getInstallPath(kernel_install.dest_dir.?, kernel.out_filename),
         });
         elf_run_cmd.step.dependOn(b.getInstallStep());
 

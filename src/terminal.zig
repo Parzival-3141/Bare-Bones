@@ -33,6 +33,10 @@ pub fn put_cursor_at(x: usize, y: usize) void {
     row = y % VGA.HEIGHT;
 }
 
+pub fn get_cursor_pos() struct { x: usize, y: usize } {
+    return .{ .x = column, .y = row };
+}
+
 pub fn put_char(c: u8) void {
     if (c != '\n') put_entry_at(column, row, c, color);
 
