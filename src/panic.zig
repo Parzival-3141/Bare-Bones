@@ -10,7 +10,11 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_
     terminal.put_char('\n');
     // terminal.init();
 
-    writer.print("KERNEL_PANIC: {s}\n", .{msg}) catch unreachable;
+    terminal.color = terminal.VGA.color(.light_red, .black);
+    terminal.write("KERNEL_PANIC");
+
+    terminal.color = terminal.VGA.DEFAULT_COLOR;
+    writer.print(": {s}\n", .{msg}) catch unreachable;
 
     if (ret_addr) |addr| writer.print("return address: {x}\n", .{addr}) catch unreachable;
     if (error_return_trace) |trace| {

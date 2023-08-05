@@ -1,7 +1,7 @@
 var row: usize = 0;
 var column: usize = 0;
 
-pub var color: u8 = VGA.color(.light_grey, .black);
+pub var color: u8 = VGA.DEFAULT_COLOR;
 
 var buffer = @as([*]volatile u16, @ptrFromInt(0xB8000));
 
@@ -85,6 +85,7 @@ pub fn writer() Writer {
 pub const VGA = struct {
     pub const WIDTH = 80;
     pub const HEIGHT = 25;
+    pub const DEFAULT_COLOR = VGA.color(.light_grey, .black);
 
     pub inline fn color(foreground: Color, background: Color) u8 {
         return @intFromEnum(foreground) | (@as(u8, @intFromEnum(background)) << 4);
