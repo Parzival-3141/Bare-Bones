@@ -34,7 +34,9 @@ pub fn build(b: *Build) !void {
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{
+        .preferred_optimize_mode = .ReleaseSafe,
+    });
 
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
@@ -44,9 +46,13 @@ pub fn build(b: *Build) !void {
         .use_lld = true,
     });
     kernel.setLinkerScriptPath(.{ .path = "src/linker.ld" });
-    // kernel.stack_protector = true;
-    // kernel.emit_asm = .emit;
     kernel.code_model = .kernel;
+    // kernel.emit_asm = .emit;
+
+    // @NOTE: stack overflow/smash protector only works on targets with a libc (https://github.com/ziglang/zig/issues/4542),
+    // but stack overflow detection is enabled by default in safe build modes.
+    // We use ReleaseSafe because of this.
+    // kernel.stack_protector = true;
 
     const kernel_install = b.addInstallArtifact(kernel, .{});
     b.getInstallStep().dependOn(&kernel_install.step);

@@ -8,7 +8,7 @@ Your next task is to make a simple hello world kernel that is able to start up, 
 - [x] [Setting up a Project](https://wiki.osdev.org/Meaty_Skeleton) \
 With a basic working example, your next task is to set up a build infrastructure using whatever build system you see fit. Be careful in your choices of technology, GNU Make is easier to port than Python.
 
-- [ ] [Stack Smash Protector](https://wiki.osdev.org/Stack_Smashing_Protector) \
+- [x] [Stack Smash Protector](https://wiki.osdev.org/Stack_Smashing_Protector) \
 Early is not too soon to think about security and robustness. You can take advantage of the optional stack smash protector offered by modern compilers that detect stack buffer overruns rather than behaving unexpectedly (or nothing happening, if unlucky).
 
 - [x] [Multiboot](https://wiki.osdev.org/Multiboot) \
