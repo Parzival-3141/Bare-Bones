@@ -159,7 +159,6 @@ pub fn load() void {
     asm volatile (
         \\ljmp %[select], $1f
         \\1:
-        \\sti
         :
         : [select] "n" (KERNEL_CODE_SELECTOR),
     );

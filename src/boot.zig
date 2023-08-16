@@ -29,7 +29,7 @@ const stack_top = stack[0..].ptr + stack.len;
 // doesn't make sense to return from this function as the bootloader is gone.
 
 export fn _start() callconv(.Naked) noreturn {
-    // asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
+    asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
 
     // The bootloader has loaded us into 32-bit protected mode on a x86
     // machine. Interrupts are disabled. Paging is disabled. The processor

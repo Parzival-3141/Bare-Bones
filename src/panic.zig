@@ -16,10 +16,13 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_
     terminal.color = terminal.VGA.DEFAULT_COLOR;
     writer.print(": {s}\n", .{msg}) catch unreachable;
 
-    if (ret_addr) |addr| writer.print("return address: {x}\n", .{addr}) catch unreachable;
+    if (ret_addr) |addr| writer.print("return address: 0x{x}\n", .{addr}) catch unreachable;
     if (error_return_trace) |trace| {
         terminal.write("error trace:\n");
-        trace.format("", .{}, writer) catch unreachable;
+        // @Note: silent compile error when error is ignored.
+        trace.format("", .{}, writer) catch {
+            writer.write("Unable to print trace\n") catch unreachable;
+        };
     }
 
     while (true) {
