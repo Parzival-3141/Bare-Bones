@@ -70,10 +70,11 @@ pub fn build(b: *Build) !void {
         const elf_run_cmd = b.addSystemCommand(&.{
             "qemu-system-i386",
             "-no-reboot",
-            "-monitor",
+            "-no-shutdown",
+            "-serial",
             "stdio",
-            "-D",
-            "./qemu.log",
+            // "-D",
+            // "./qemu.log",
             "-kernel",
             b.getInstallPath(kernel_install.dest_dir.?, kernel.out_filename),
         });

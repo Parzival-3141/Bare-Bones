@@ -28,6 +28,8 @@ const std = @import("std");
 const terminal = @import("terminal.zig");
 const multiboot = @import("multiboot.zig");
 const gdt = @import("gdt.zig");
+const kalloc = @import("kalloc.zig");
+const Table = @import("table.zig").Table;
 
 pub fn panic(msg: []const u8, error_return_trace: ?*@import("std").builtin.StackTrace, ret_addr: ?usize) noreturn {
     @setCold(true);
@@ -50,7 +52,7 @@ export fn kernel_init() noreturn {
     // C++ features such as global constructors and exceptions will require
     // runtime support to work as well.
 
-    @import("gdt.zig").load();
+    gdt.load();
 
     kernel_main(@ptrFromInt(mbinfo_addr));
 
@@ -75,8 +77,9 @@ fn kernel_main(info: *const multiboot.Info) void {
     const writer = terminal.writer();
 
     print_hello();
-    var table_buffer = [_]u8{' '} ** (terminal.VGA.WIDTH * terminal.VGA.HEIGHT);
-    var table_fba = std.heap.FixedBufferAllocator.init(&table_buffer);
+
+    kalloc.init();
+    const kallocator = kalloc.allocator();
 
     if (!info.flags.mem_map) @panic("Missing memory map!\n");
 
@@ -85,7 +88,7 @@ fn kernel_main(info: *const multiboot.Info) void {
 
     terminal.write("Memory Map:\n");
     {
-        var table = @import("table.zig").Table(&.{ "Address", "Size", "Info" }).init(table_fba.allocator());
+        var table = Table(&.{ "Address", "Size", "Info" }).init(kallocator);
         defer table.deinit();
 
         for (mem_map) |entry| {
@@ -100,7 +103,6 @@ fn kernel_main(info: *const multiboot.Info) void {
         }
 
         table.print_out(writer) catch unreachable;
-        table_fba.reset();
     }
 
     terminal.write("\n");
@@ -112,7 +114,7 @@ fn kernel_main(info: *const multiboot.Info) void {
     terminal.write("GDT:\n");
     writer.print("GDT_Ptr{{ .size = 0x{x}, .address = 0x{x} }}\n", .{ gdt_ptr.size, gdt_ptr.address }) catch unreachable;
     {
-        var table = @import("table.zig").Table(&.{ "Index", "BaseAddress", "Size", "Info" }).init(table_fba.allocator());
+        var table = Table(&.{ "Index", "BaseAddress", "Size", "Info" }).init(kallocator);
         defer table.deinit();
 
         for (descriptors, 0..) |d, i| {
@@ -132,7 +134,6 @@ fn kernel_main(info: *const multiboot.Info) void {
         }
 
         table.print_out(terminal.writer()) catch unreachable;
-        table_fba.reset();
     }
 }
 
