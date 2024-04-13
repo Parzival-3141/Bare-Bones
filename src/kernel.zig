@@ -36,7 +36,7 @@ pub fn panic(msg: []const u8, error_return_trace: ?*@import("std").builtin.Stack
     @import("panic.zig").panic(msg, error_return_trace, ret_addr);
 }
 
-export fn kernel_init() noreturn {
+pub fn kernel_init() noreturn {
     // Grab multiboot info before potentially overwriting it
     const mbinfo_addr: usize align(16) =
         asm volatile (""

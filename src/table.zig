@@ -91,7 +91,7 @@ pub const AllocatingWriter = struct {
     const Self = @This();
 
     pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
-        var data = try self.allocator.alloc(u8, bytes.len);
+        const data = try self.allocator.alloc(u8, bytes.len);
 
         @memcpy(data, bytes);
 

@@ -58,8 +58,6 @@ export fn _start() callconv(.Naked) noreturn {
     asm volatile (
         \\call %[kernel_init:P]
         :
-        : [kernel_init] "X" (&kernel_init),
+        : [kernel_init] "X" (&@import("kernel.zig").kernel_init),
     );
 }
-
-extern fn kernel_init() noreturn;
