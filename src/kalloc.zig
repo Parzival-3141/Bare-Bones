@@ -82,6 +82,71 @@ fn contiguous_search(len: usize) ?usize {
     return if (found) idx else null;
 }
 
+test "small allocations - free in same order" {
+    // init();
+    const ally = allocator();
+
+    var list = std.ArrayList(*u64).init(std.testing.allocator);
+    defer list.deinit();
+
+    var i: usize = 0;
+    while (i < 513) : (i += 1) {
+        const ptr = try ally.create(u64);
+        try list.append(ptr);
+    }
+
+    for (list.items) |ptr| {
+        ally.destroy(ptr);
+    }
+}
+
+test "small allocations - free in reverse order" {
+    // init();
+    const ally = allocator();
+
+    var list = std.ArrayList(*u64).init(std.testing.allocator);
+    defer list.deinit();
+
+    var i: usize = 0;
+    while (i < 513) : (i += 1) {
+        const ptr = try ally.create(u64);
+        try list.append(ptr);
+    }
+
+    while (list.popOrNull()) |ptr| {
+        ally.destroy(ptr);
+    }
+}
+
+// test "shrink" {
+//     init();
+//     const ally = allocator();
+
+//     var slice = try ally.alloc(u8, 20);
+//     defer ally.free(slice);
+
+//     @memset(slice, 0x11);
+
+//     try std.testing.expect(ally.resize(slice, 17));
+//     slice = slice[0..17];
+
+//     for (slice) |b| {
+//         try std.testing.expect(b == 0x11);
+//     }
+
+//     try std.testing.expect(ally.resize(slice, 16));
+//     slice = slice[0..16];
+
+//     for (slice) |b| {
+//         try std.testing.expect(b == 0x11);
+//     }
+// }
+
+test "std test" {
+    // init();
+    try std.heap.testAllocator(allocator());
+}
+
 // @Todo: need to setup serial io and interrupts before
 // using in/out commands. https://wiki.osdev.org/Serial_Ports
 // Also, move this to a better place!
