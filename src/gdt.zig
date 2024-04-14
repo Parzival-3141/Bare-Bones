@@ -150,9 +150,9 @@ pub fn load() void {
     gdt_ptr.address = @intFromPtr(&table);
 
     // Load GDT into CPU
-    asm volatile ("lgdt (%%eax)"
+    asm volatile ("lgdt %[gdt_ptr]"
         :
-        : [gdt_ptr] "{eax}" (&gdt_ptr),
+        : [gdt_ptr] "p" (&gdt_ptr),
     );
 
     // Reload segment registers

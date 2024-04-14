@@ -53,6 +53,7 @@ pub fn kernel_init() noreturn {
     // runtime support to work as well.
 
     gdt.load();
+    @import("idt.zig").load();
 
     kernel_main(@ptrFromInt(mbinfo_addr));
 
@@ -77,6 +78,8 @@ fn kernel_main(info: *const multiboot.Info) void {
     const writer = terminal.writer();
 
     print_hello();
+
+    asm volatile ("int $49"); // test interrupt, should trigger unhandled exception
 
     kalloc.init();
     const kallocator = kalloc.allocator();
