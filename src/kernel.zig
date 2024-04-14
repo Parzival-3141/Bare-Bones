@@ -79,7 +79,7 @@ fn kernel_main(info: *const multiboot.Info) void {
 
     print_hello();
 
-    asm volatile ("int $49"); // test interrupt, should trigger unhandled exception
+    // asm volatile ("int $49"); // should trigger unhandled interrupt
 
     kalloc.init();
     const kallocator = kalloc.allocator();
