@@ -14,7 +14,7 @@ pub const Descriptor = packed struct(u64) {
         /// Readable bit. If false, read access for this segment is not allowed. If true, read access is allowed. Write access is never allowed for code segments.
         /// For data segments:
         /// Writeable bit. If false, write access for this segment is not allowed. If true, write access is allowed. Read access is always allowed for data segments.
-        read_write: bool,
+        read_write: bool = true,
 
         /// For data selectors: Direction bit. If false the segment grows up. If true the segment grows down, ie. the Offset has to be greater than the Limit.
         /// For code selectors: Conforming bit. If false code in this segment can only be executed from the ring set in DPL.
@@ -23,17 +23,17 @@ pub const Descriptor = packed struct(u64) {
         /// that is allowed to execute the segment. For example, code in ring 0 cannot far-jump to a conforming code segment
         /// where DPL is 2, while code in ring 2 and 3 can. Note that the privilege level remains the same,
         /// ie. a far-jump from ring 3 to a segment with a DPL of 2 remains in ring 3 after the jump.
-        direction_conforming: bool,
+        direction_conforming: bool = false,
 
         ///  If false the descriptor defines a data segment. If true it defines a code segment which can be executed from.
         executable: bool,
 
         /// If false the descriptor defines a system segment (eg. a Task State Segment). If true it defines a code or data segment.
-        descriptor_type: enum(u1) { system = 0, code_data = 1 },
+        descriptor_type: enum(u1) { system = 0, code_data = 1 } = .code_data,
         privilege: PrivilegeLevel,
 
         /// Allows an entry to refer to a valid segment. Must be true for any valid segment.
-        present: bool,
+        present: bool = true,
     };
 
     pub const Flags = packed struct(u4) {
@@ -81,12 +81,13 @@ pub const Selector = packed struct(u16) {
     index: u13,
 };
 
-/// GDTR structure
-pub const GDT_Ptr = packed struct(u48) {
+/// Descriptor Table Register.
+/// Used for both GDT and IDT structures.
+pub const DescTablePtr = packed struct(u48) {
     /// Size of the table in bytes - 1
     size: u16,
 
-    /// Linear address of the GDT (not the physical address, paging applies).
+    /// Linear address of the table (not the physical address, paging applies).
     address: u32,
 };
 
@@ -99,7 +100,7 @@ const PAGING_32BIT = Descriptor.Flags{
 const TABLE_SIZE: u16 = @sizeOf(Descriptor) * table.len;
 const table = [_]Descriptor{
     // Null Descriptor
-    make_entry(0, 0, bitCast(Descriptor.AccessFlags, 0x0), bitCast(Descriptor.Flags, 0x0)),
+    make_entry(0, 0, @bitCast(@as(u8, 0x0)), @bitCast(@as(u4, 0x0))),
 
     // https://stackoverflow.com/questions/23978486/far-jump-in-gdt-in-bootloader
     // We set all segments to the 0..0xFFFFF range, overlapping them.
@@ -108,25 +109,35 @@ const table = [_]Descriptor{
     // and enable paging.
 
     // Kernel Code Descriptor
-    make_entry(0, 0xFFFFF, bitCast(Descriptor.AccessFlags, 0x9A), PAGING_32BIT),
+    make_entry(0, 0xFFFFF, .{ .executable = true, .privilege = .ring0 }, PAGING_32BIT),
 
     // Kernel Data Descriptor
-    make_entry(0, 0xFFFFF, bitCast(Descriptor.AccessFlags, 0x92), PAGING_32BIT),
+    make_entry(0, 0xFFFFF, .{ .executable = false, .privilege = .ring0 }, PAGING_32BIT),
 
     // User Code Descriptor
-    make_entry(0, 0xFFFFF, bitCast(Descriptor.AccessFlags, 0xFA), PAGING_32BIT),
+    make_entry(0, 0xFFFFF, .{ .executable = true, .privilege = .ring3 }, PAGING_32BIT),
 
     // User Data Descriptor
-    make_entry(0, 0xFFFFF, bitCast(Descriptor.AccessFlags, 0xF2), PAGING_32BIT),
+    make_entry(0, 0xFFFFF, .{ .executable = false, .privilege = .ring3 }, PAGING_32BIT),
 
     // TSS Descriptor (setup at runtime)
-    // make_entry(0, 0, bitCast(Descriptor.AccessFlags, 0x89), bitCast(Descriptor.Flags, 0x0)),
+    // make_entry(
+    //     0,
+    //     0,
+    //     .{
+    //         .read_write = false,
+    //         .executable = true,
+    //         .descriptor_type = .system,
+    //         .privilege = .ring0,
+    //     },
+    //     @bitCast(@as(u4, 0x0)),
+    // ),
 };
 
-const KERNEL_CODE_SELECTOR = Selector{ .privilege = .ring0, .table = .gdt, .index = 1 };
-const KERNEL_DATA_SELECTOR = Selector{ .privilege = .ring0, .table = .gdt, .index = 2 };
+pub const KERNEL_CODE_SELECTOR = Selector{ .privilege = .ring0, .table = .gdt, .index = 1 };
+pub const KERNEL_DATA_SELECTOR = Selector{ .privilege = .ring0, .table = .gdt, .index = 2 };
 
-var gdt_ptr = GDT_Ptr{
+var gdt_ptr = DescTablePtr{
     .size = TABLE_SIZE - 1,
     .address = undefined,
 };
@@ -136,7 +147,7 @@ pub fn load() void {
 
     // @Todo: initialize TSS here
 
-    gdt_ptr.address = @as(u32, @intFromPtr(&table));
+    gdt_ptr.address = @intFromPtr(&table);
 
     // Load GDT into CPU
     asm volatile ("lgdt (%%eax)"
@@ -164,8 +175,8 @@ pub fn load() void {
     );
 }
 
-pub fn get_loaded() GDT_Ptr {
-    var ptr = GDT_Ptr{ .size = 0, .address = 0 };
+pub fn get_loaded() DescTablePtr {
+    var ptr = DescTablePtr{ .size = 0, .address = 0 };
     asm volatile ("sgdt %[out]"
         : [out] "=m" (ptr),
     );
@@ -174,23 +185,11 @@ pub fn get_loaded() GDT_Ptr {
 
 fn make_entry(base: u32, limit: u20, access: Descriptor.AccessFlags, flags: Descriptor.Flags) Descriptor {
     return Descriptor{
-        .limit_low = @as(u16, @truncate(limit)),
-        .base_low = @as(u24, @truncate(base)),
+        .limit_low = @truncate(limit),
+        .base_low = @truncate(base),
         .access = access,
-        .limit_high = @as(u4, @truncate(limit >> 16)),
+        .limit_high = @truncate(limit >> 16),
         .flags = flags,
-        .base_high = @as(u8, @truncate(base >> 24)),
+        .base_high = @truncate(base >> 24),
     };
-}
-
-fn bitCast(comptime T: type, value: anytype) T {
-    const backing_int = switch (@typeInfo(T)) {
-        .Struct => |s| blk: {
-            break :blk s.backing_integer orelse
-                @compileError("Invalid type, must be a packed struct: " ++ @typeName(T));
-        },
-        else => @compileError("Invalid type, must be a packed struct: " ++ @typeName(T)),
-    };
-
-    return @bitCast(@as(backing_int, value));
 }

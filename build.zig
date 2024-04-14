@@ -58,8 +58,8 @@ pub fn build(b: *Build) !void {
             "-no-shutdown",
             "-serial",
             "stdio",
-            // "-D",
-            // "./qemu.log",
+            "-D",
+            "./qemu.log",
             "-kernel",
         });
         kernel_qemu_cmd.addArtifactArg(kernel);
