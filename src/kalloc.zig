@@ -146,22 +146,3 @@ test "std test" {
     // init();
     try std.heap.testAllocator(allocator());
 }
-
-// @Todo: need to setup serial io and interrupts before
-// using in/out commands. https://wiki.osdev.org/Serial_Ports
-// Also, move this to a better place!
-// inline fn outb(port: u16, value: u8) void {
-//     asm volatile (
-//         \\outb %[value], %[port]
-//         :
-//         : [value] "{eax}" (value),
-//           [port] "N{edx}" (port),
-//         : "memory"
-//     );
-// }
-
-// fn dbprint(bytes: []const u8) void {
-//     for (bytes) |b| {
-//         outb(0x3F8, b);
-//     }
-// }

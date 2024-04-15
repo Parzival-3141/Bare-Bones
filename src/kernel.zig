@@ -53,7 +53,7 @@ pub fn kernel_init() noreturn {
     // runtime support to work as well.
 
     gdt.load();
-    @import("idt.zig").load();
+    @import("interrupts.zig").init();
 
     kernel_main(@ptrFromInt(mbinfo_addr));
 
@@ -67,7 +67,7 @@ pub fn kernel_init() noreturn {
     //    Since they are disabled, this will lock up the computer.
     // 3) Jump to the hlt instruction if it ever wakes up due to a
     //    non-maskable interrupt occurring or due to system management mode.
-    asm volatile ("cli");
+    // asm volatile ("cli");
     while (true) {
         asm volatile ("hlt");
     }
@@ -80,6 +80,7 @@ fn kernel_main(info: *const multiboot.Info) void {
     print_hello();
 
     // asm volatile ("int $49"); // should trigger unhandled interrupt
+    if (true) return;
 
     kalloc.init();
     const kallocator = kalloc.allocator();
