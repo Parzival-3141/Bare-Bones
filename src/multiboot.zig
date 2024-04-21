@@ -272,5 +272,9 @@ pub const MemoryMapEntry = extern struct {
 
         /// All other values currently indicated a reserved area
         _,
+
+        pub fn isReserved(m: MemoryType) bool {
+            return @intFromEnum(m) > @intFromEnum(MemoryType.badram);
+        }
     };
 };
