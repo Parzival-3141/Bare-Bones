@@ -1,8 +1,9 @@
 const std = @import("std");
 const gdt = @import("gdt.zig");
+const io = @import("io.zig");
 
 pub fn init() void {
-    PIC.remap(IRQ_0, IRQ_0 + 8);
+    PIC.remap(IRQ_0);
     PIC.maskIrq(0, true);
     loadIDT();
 }
@@ -36,6 +37,8 @@ const IRQ_0 = 32;
 const IRQ_15 = IRQ_0 + 15;
 
 export fn mainInterruptHandler(frame: IsrStack) void {
+    asm volatile ("xchgw %bx, %bx");
+
     switch (frame.interrupt) {
         // @Todo: handle exceptions
         EXCEPTION_0...EXCEPTION_31 => std.debug.panic("Unhandled exception: {d}", .{frame.interrupt}),
@@ -47,8 +50,7 @@ export fn mainInterruptHandler(frame: IsrStack) void {
             // @Todo: handle IRQs
             switch (irq) {
                 1 => {
-                    // print out scancodes
-                    @import("terminal.zig").put_char(inb(0x60));
+                    io.ps2.handleData(io.inb(io.ps2.DATA_PORT));
                 },
                 else => std.debug.panic("Unhandled IRQ: {d} (interrupt={d})", .{ irq, frame.interrupt }),
             }
@@ -129,6 +131,7 @@ fn loadIDT() void {
             .privilege = .ring0,
         };
     }
+    asm volatile ("xchgw %bx, %bx");
 
     idt_ptr.address = @intFromPtr(&idt);
 
@@ -178,54 +181,54 @@ const PIC = struct {
 
     const end_of_interrupt = 0x20;
 
-    pub fn remap(master_offset: u8, slave_offset: u8) void {
+    pub fn remap(offset: u8) void {
         // Initialization Command Words (ICW)
         const ICW1_INIT = 0x10; // Initialization - required!
         const ICW1_ICW4 = 0x01; // Indicates that ICW4 will be present
         const ICW4_8086 = 0x01; // 8086/88 (MCS-80/85) mode
 
-        const mask1 = inb(master_data);
-        const mask2 = inb(slave_data);
+        const mask1 = io.inb(master_data);
+        const mask2 = io.inb(slave_data);
 
-        outb(master_command, ICW1_INIT | ICW1_ICW4); // starts the initialization sequence (in cascade mode)
-        io_wait();
-        outb(slave_command, ICW1_INIT | ICW1_ICW4);
-        io_wait();
-        outb(master_data, master_offset); // ICW2: Master PIC vector offset
-        io_wait();
-        outb(slave_data, slave_offset); // ICW2: Slave PIC vector offset
-        io_wait();
-        outb(master_data, 4); // ICW3: tell Master PIC that there is a slave PIC at IRQ2 (0000 0100)
-        io_wait();
-        outb(slave_data, 2); // ICW3: tell Slave PIC its cascade identity (0000 0010)
-        io_wait();
+        io.outb(master_command, ICW1_INIT | ICW1_ICW4); // starts the initialization sequence (in cascade mode)
+        io.wait();
+        io.outb(slave_command, ICW1_INIT | ICW1_ICW4);
+        io.wait();
+        io.outb(master_data, offset); // ICW2: Master PIC vector offset
+        io.wait();
+        io.outb(slave_data, offset + 8); // ICW2: Slave PIC vector offset
+        io.wait();
+        io.outb(master_data, 4); // ICW3: tell Master PIC that there is a slave PIC at IRQ2 (0000 0100)
+        io.wait();
+        io.outb(slave_data, 2); // ICW3: tell Slave PIC its cascade identity (0000 0010)
+        io.wait();
 
-        outb(master_data, ICW4_8086); // ICW4: have the PICs use 8086 mode (and not 8080 mode)
-        io_wait();
-        outb(slave_data, ICW4_8086);
-        io_wait();
+        io.outb(master_data, ICW4_8086); // ICW4: have the PICs use 8086 mode (and not 8080 mode)
+        io.wait();
+        io.outb(slave_data, ICW4_8086);
+        io.wait();
 
-        outb(master_data, mask1); // restore saved masks.
-        outb(slave_data, mask2);
+        io.outb(master_data, mask1); // restore saved masks.
+        io.outb(slave_data, mask2);
     }
 
     pub fn disable() void {
-        outb(master_data, 0xFF);
-        outb(slave_data, 0xFF);
+        io.outb(master_data, 0xFF);
+        io.outb(slave_data, 0xFF);
     }
 
     pub fn sendEOI(irq: u8) void {
-        if (irq >= 8) outb(slave_command, end_of_interrupt);
-        outb(master_command, end_of_interrupt);
+        if (irq >= 8) io.outb(slave_command, end_of_interrupt);
+        io.outb(master_command, end_of_interrupt);
     }
 
     pub fn maskIrq(irq: u8, mask: bool) void {
         const port: u16 = if (irq < 8) master_data else slave_data;
         const shift: u3 = @intCast(irq % 8);
         if (mask)
-            outb(port, inb(port) | (@as(u8, 1) << shift))
+            io.outb(port, io.inb(port) | (@as(u8, 1) << shift))
         else
-            outb(port, inb(port) & ~(@as(u8, 1) << shift));
+            io.outb(port, io.inb(port) & ~(@as(u8, 1) << shift));
     }
 
     pub const StatusRegister = enum(u8) {
@@ -242,9 +245,9 @@ const PIC = struct {
         // OCW3 to PIC CMD to get the register values.  Slave is chained, and
         // represents IRQs 8-15.  Master is IRQs 0-7, with 2 being the chain.
         const ocw3 = @intFromEnum(sr);
-        outb(master_command, ocw3);
-        outb(slave_command, ocw3);
-        return (@as(u16, inb(slave_command)) << 8) | inb(master_command);
+        io.outb(master_command, ocw3);
+        io.outb(slave_command, ocw3);
+        return (@as(u16, io.inb(slave_command)) << 8) | io.inb(master_command);
     }
 
     /// Returns true if the IRQ is spurious and should be ignored.
@@ -260,7 +263,7 @@ const PIC = struct {
                 if ((slave_isr & (1 << 7)) == 0) {
                     // Send EOI to Master PIC since it doesn't know
                     // this was a spurious IRQ from the Slave.
-                    outb(master_command, end_of_interrupt);
+                    io.outb(master_command, end_of_interrupt);
                     return true;
                 } else return false;
             },
@@ -268,31 +271,3 @@ const PIC = struct {
         }
     }
 };
-
-inline fn inb(port: u16) u8 {
-    return asm volatile (
-        \\inb %[port], %[ret]
-        : [ret] "={al}" (-> u8),
-        : [port] "N{dx}" (port),
-        : "memory"
-    );
-}
-
-inline fn outb(port: u16, val: u8) void {
-    asm volatile (
-        \\outb %[val], %[port]
-        :
-        : [val] "{al}" (val),
-          [port] "N{dx}" (port),
-        : "memory"
-    );
-}
-
-/// Wait a very small amount of time (1 to 4 microseconds, generally).
-inline fn io_wait() void {
-    // You can do an IO operation on any unused port: the Linux kernel by
-    // default uses port 0x80, which is often used during POST to log
-    // information on the motherboard's hex display but almost always unused
-    // after boot.
-    outb(0x80, 0);
-}

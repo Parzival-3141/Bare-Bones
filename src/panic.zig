@@ -1,5 +1,5 @@
 const std = @import("std");
-const terminal = @import("terminal.zig");
+const terminal = @import("io/terminal.zig");
 
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     @setCold(true);
@@ -8,7 +8,6 @@ pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_
 
     const writer = terminal.writer();
     terminal.put_char('\n');
-    // terminal.init();
 
     terminal.color = terminal.VGA.color(.light_red, .black);
     terminal.write("KERNEL_PANIC");

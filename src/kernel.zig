@@ -25,11 +25,10 @@ comptime {
 }
 
 const std = @import("std");
-const terminal = @import("terminal.zig");
+const io = @import("io.zig");
+const terminal = io.terminal;
 const multiboot = @import("multiboot.zig");
 const gdt = @import("gdt.zig");
-const kalloc = @import("kalloc.zig");
-const Table = @import("table.zig").Table;
 
 pub fn panic(msg: []const u8, error_return_trace: ?*@import("std").builtin.StackTrace, ret_addr: ?usize) noreturn {
     @setCold(true);
@@ -74,70 +73,15 @@ pub fn kernel_init() noreturn {
 }
 
 fn kernel_main(info: *const multiboot.Info) void {
+    _ = info;
     terminal.init();
-    const writer = terminal.writer();
 
     print_hello();
 
-    // asm volatile ("int $49"); // should trigger unhandled interrupt
-    if (true) return;
-
-    kalloc.init();
-    const kallocator = kalloc.allocator();
-
-    if (!info.flags.mem_map) @panic("Missing memory map!\n");
-
-    const num_mmap_entries = info.mmap_length / @sizeOf(multiboot.MemoryMapEntry);
-    const mem_map = @as([*]multiboot.MemoryMapEntry, @ptrFromInt(info.mmap_addr))[0..num_mmap_entries];
-
-    terminal.write("Memory Map:\n");
-    {
-        var table = Table(&.{ "Address", "Size", "Info" }).init(kallocator);
-        defer table.deinit();
-
-        for (mem_map) |entry| {
-            table.entry(0, "0x{x}", .{entry.base_addr}) catch unreachable;
-            table.entry(1, "{d} (0x{x})", .{ entry.length, entry.length }) catch unreachable;
-            table.entry(2, "{s}", .{
-                if (@intFromEnum(entry.mem_type) <= @intFromEnum(multiboot.MemoryMapEntry.MemoryType.badram))
-                    @tagName(entry.mem_type)
-                else
-                    "reserved",
-            }) catch unreachable;
+    while (true) {
+        if (io.ps2.getKey()) |key| {
+            terminal.put_char(key);
         }
-
-        table.print_out(writer) catch unreachable;
-    }
-
-    terminal.write("\n");
-
-    const gdt_ptr = gdt.get_loaded();
-    const gdt_memory = @as([*]u8, @ptrFromInt(gdt_ptr.address))[0 .. gdt_ptr.size + 1];
-    const descriptors = std.mem.bytesAsSlice(gdt.Descriptor, gdt_memory);
-
-    terminal.write("GDT:\n");
-    writer.print("GDT_Ptr{{ .size = 0x{x}, .address = 0x{x} }}\n", .{ gdt_ptr.size, gdt_ptr.address }) catch unreachable;
-    {
-        var table = Table(&.{ "Index", "BaseAddress", "Size", "Info" }).init(kallocator);
-        defer table.deinit();
-
-        for (descriptors, 0..) |d, i| {
-            table.entry(0, "{d}", .{i}) catch unreachable;
-            table.entry(1, "0x{x}", .{(d.base_low | @as(u32, d.base_high) << 24)}) catch unreachable;
-            table.entry(2, "0x{x}", .{(d.limit_low | @as(u20, d.limit_high) << 16)}) catch unreachable;
-
-            if (d.access.present) {
-                table.entry(3, "{s} {s} {s}", .{
-                    if (d.flags.is_64bit) "64-bit" else "32-bit",
-                    if (d.access.executable) "code" else "data",
-                    @tagName(d.access.privilege),
-                }) catch unreachable;
-            } else {
-                table.entry(3, "invalid", .{}) catch unreachable;
-            }
-        }
-
-        table.print_out(terminal.writer()) catch unreachable;
     }
 }
 
