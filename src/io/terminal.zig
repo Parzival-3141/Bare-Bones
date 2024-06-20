@@ -31,6 +31,16 @@ pub fn put_color_at(x: usize, y: usize, new_color: u8) void {
 pub fn put_cursor_at(x: usize, y: usize) void {
     column = x % VGA.WIDTH;
     row = y % VGA.HEIGHT;
+    update_visual_cursor();
+}
+
+pub fn update_visual_cursor() void {
+    const outb = @import("../io.zig").outb;
+    const pos: u16 = @intCast(row * VGA.WIDTH + column);
+    outb(0x3D4, 0xF);
+    outb(0x3D5, @truncate(pos));
+    outb(0x3D4, 0xE);
+    outb(0x3D5, @truncate(pos >> 8));
 }
 
 pub fn get_cursor_pos() struct { x: usize, y: usize } {
@@ -65,10 +75,20 @@ pub fn put_char(c: u8) void {
     }
 }
 
+pub fn backspace() void {
+    column, const overflow = @subWithOverflow(column, 1);
+    if (overflow != 0) {
+        column = VGA.WIDTH - 1;
+        row -|= 1;
+    }
+    put_entry_at(column, row, ' ', color);
+}
+
 pub fn write(str: []const u8) void {
     for (str) |c| {
         put_char(c);
     }
+    update_visual_cursor();
 }
 
 pub const Writer = @import("std").io.Writer(void, error{}, _write);

@@ -36,12 +36,12 @@ pub fn build(b: *Build) !void {
 
     const kernel = b.addExecutable(.{
         .name = "kernel.elf",
-        .root_source_file = .{ .path = "src/kernel.zig" },
+        .root_source_file = b.path("src/kernel.zig"),
         .target = b.resolveTargetQuery(target),
         .optimize = optimize,
         .use_lld = true,
     });
-    kernel.setLinkerScriptPath(.{ .path = "src/linker.ld" });
+    kernel.setLinkerScriptPath(b.path("src/linker.ld"));
     kernel.root_module.code_model = .kernel;
 
     // @NOTE: stack overflow/smash protector only works on targets with a libc (https://github.com/ziglang/zig/issues/4542),
@@ -76,8 +76,11 @@ pub fn build(b: *Build) !void {
 
     if (b.option(bool, "verify-mboot", "Verify kernel is Multiboot compliant") orelse false) {
         // [wsl] grub-file --is-x86-multiboot zig-out/bin/kernel.bin
-        const verify_cmd = b.addSystemCommand(&.{ "grub2-file", "--is-x86-multiboot" });
-        if (use_wsl) try verify_cmd.argv.insert(0, .{ .bytes = b.dupe("wsl") });
+        const verify_cmd = b.addSystemCommand(&.{
+            if (use_wsl) "wsl" else "",
+            "grub2-file",
+            "--is-x86-multiboot",
+        });
         verify_cmd.addArtifactArg(kernel);
         verify_cmd.expectExitCode(0);
     }
@@ -89,8 +92,11 @@ pub fn build(b: *Build) !void {
         _ = isodir.addCopyFile(kernel.getEmittedBin(), b.fmt("boot/{s}", .{kernel.name}));
 
         const iso_name = os_name ++ ".iso";
-        const mkrescue_cmd = b.addSystemCommand(&.{ "grub2-mkrescue", "-o" });
-        if (use_wsl) try mkrescue_cmd.argv.insert(0, .{ .bytes = b.dupe("wsl") });
+        const mkrescue_cmd = b.addSystemCommand(&.{
+            if (use_wsl) "wsl" else "",
+            "grub2-mkrescue",
+            "-o",
+        });
         const iso = mkrescue_cmd.addOutputFileArg(iso_name);
         mkrescue_cmd.addDirectoryArg(isodir.getDirectory());
 

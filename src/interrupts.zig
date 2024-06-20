@@ -37,8 +37,6 @@ const IRQ_0 = 32;
 const IRQ_15 = IRQ_0 + 15;
 
 export fn mainInterruptHandler(frame: IsrStack) void {
-    asm volatile ("xchgw %bx, %bx");
-
     switch (frame.interrupt) {
         // @Todo: handle exceptions
         EXCEPTION_0...EXCEPTION_31 => std.debug.panic("Unhandled exception: {d}", .{frame.interrupt}),
@@ -131,7 +129,6 @@ fn loadIDT() void {
             .privilege = .ring0,
         };
     }
-    asm volatile ("xchgw %bx, %bx");
 
     idt_ptr.address = @intFromPtr(&idt);
 

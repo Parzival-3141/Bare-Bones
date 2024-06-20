@@ -1,4 +1,6 @@
-zig-*
+zig-out
+.zig-cache
 isodir
 *.iso
 *.log
+bx_enh_dbg.ini

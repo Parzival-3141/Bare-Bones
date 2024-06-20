@@ -32,8 +32,10 @@ pub fn kernel_init() noreturn {
     // C++ features such as global constructors and exceptions will require
     // runtime support to work as well.
 
+    terminal.init();
     gdt.load();
     @import("interrupts.zig").init();
+    @import("io/ps3.zig").init() catch |err| @panic(@errorName(err));
 
     kernel_main(@ptrFromInt(mbinfo_addr)) catch |err| @panic(@errorName(err));
 
@@ -54,7 +56,7 @@ fn kernel_main(info: *const multiboot.Info) !void {
     terminal.init();
     const writer = terminal.writer();
 
-    print_hello();
+    // print_hello();
 
     kalloc.init();
     const kallocator = kalloc.allocator();
@@ -64,8 +66,8 @@ fn kernel_main(info: *const multiboot.Info) !void {
     const num_mmap_entries = info.mmap_length / @sizeOf(multiboot.MemoryMapEntry);
     const mem_map = @as([*]multiboot.MemoryMapEntry, @ptrFromInt(info.mmap_addr))[0..num_mmap_entries];
 
-    terminal.write("Memory Map:\n");
-    {
+    if (true) {
+        terminal.write("Memory Map:\n");
         const T = Table(&.{ "Address", "Size", "Info" });
         var table: T = .{ .rows = try kallocator.alloc(T.Row, mem_map.len) };
         defer {
@@ -92,9 +94,10 @@ fn kernel_main(info: *const multiboot.Info) !void {
     const gdt_memory = @as([*]u8, @ptrFromInt(gdt_ptr.address))[0 .. gdt_ptr.size + 1];
     const descriptors = std.mem.bytesAsSlice(gdt.Descriptor, gdt_memory);
 
-    terminal.write("\nGDT:\n");
-    writer.print("GDT_Ptr{{ .size = 0x{x}, .address = 0x{x} }}\n", .{ gdt_ptr.size, gdt_ptr.address }) catch unreachable;
-    {
+    if (true) {
+        terminal.write("\nGDT:\n");
+        writer.print("GDT_Ptr{{ .size = 0x{x}, .address = 0x{x} }}\n", .{ gdt_ptr.size, gdt_ptr.address }) catch unreachable;
+
         const T = Table(&.{ "Index", "BaseAddress", "Size", "Info" });
         var table: T = .{ .rows = try kallocator.alloc(T.Row, descriptors.len) };
         defer {
@@ -124,9 +127,23 @@ fn kernel_main(info: *const multiboot.Info) !void {
         writer.print("{}\n\n", .{table}) catch unreachable;
     }
 
+    io.ps2.sendCommand(.{ .echo = {} });
+    io.ps2.sendCommand(.{ .access_scancode_set = .set_1 });
+    io.ps2.sendCommand(.{
+        .set_typematic = .{
+            .repeat_rate = 0xC,
+            .delay_before_repeat = .@"500ms",
+        },
+    });
+    io.ps2.sendCommand(.{ .enable_scanning = {} });
+
     while (true) {
         if (io.ps2.getKey()) |key| {
-            terminal.put_char(key);
+            switch (key) {
+                0x8 => terminal.backspace(),
+                else => terminal.put_char(key),
+            }
+            terminal.update_visual_cursor();
         }
     }
 }

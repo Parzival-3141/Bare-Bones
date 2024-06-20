@@ -32,7 +32,7 @@ fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
     if (len == 0) return null;
     // const alignment = @as(usize, 1) << ptr_align;
 
-    asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
+    // asm volatile ("xchgw %bx, %bx"); // bochs breakpoint
 
     // @Todo: this doesn't account for pointer alignment.
     const num_chunks = std.math.divCeil(usize, len, chunk_size) catch unreachable;
