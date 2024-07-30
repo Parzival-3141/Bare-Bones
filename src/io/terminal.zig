@@ -88,7 +88,6 @@ pub fn write(str: []const u8) void {
     for (str) |c| {
         put_char(c);
     }
-    update_visual_cursor();
 }
 
 pub const Writer = @import("std").io.Writer(void, error{}, _write);

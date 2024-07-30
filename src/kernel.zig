@@ -35,7 +35,7 @@ pub fn kernel_init() noreturn {
     terminal.init();
     gdt.load();
     @import("interrupts.zig").init();
-    @import("io/ps3.zig").init() catch |err| @panic(@errorName(err));
+    @import("io/i8042_controller.zig").init();
 
     kernel_main(@ptrFromInt(mbinfo_addr)) catch |err| @panic(@errorName(err));
 
@@ -126,6 +126,7 @@ fn kernel_main(info: *const multiboot.Info) !void {
 
         writer.print("{}\n\n", .{table}) catch unreachable;
     }
+    terminal.update_visual_cursor();
 
     io.ps2.sendCommand(.{ .echo = {} });
     io.ps2.sendCommand(.{ .access_scancode_set = .set_1 });
@@ -159,8 +160,9 @@ fn print_hello() void {
         \\
     ;
 
-    const default_color = terminal.VGA.color(.light_grey, .black);
+    const default_color = terminal.VGA.DEFAULT_COLOR;
     const border_color = terminal.VGA.color(.light_green, .black);
+    defer terminal.color = default_color;
 
     for (hello_msg) |c| {
         terminal.color = if (c == '#') border_color else default_color;
